@@ -1,0 +1,3 @@
+[console_scripts]
+create-aio-app = create_aio_app.main:main
+
