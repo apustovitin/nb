@@ -27,7 +27,9 @@ async def cleanup(app: web.Application):
 
 
 async def shutdown(app):
-    for ws in app['websockets'].values():
+    wss = app['websockets'].values()
+    print(wss)
+    for ws in wss:
         await ws.close()
     app['websockets'].clear()
 
@@ -44,8 +46,8 @@ async def create_app():
     aiohttp_jinja2.setup(app, loader=jinja2_loader)
 
     app.on_startup.append(startup)
-    app.on_cleanup.append(cleanup)
     app.on_shutdown.append(shutdown)
+    app.on_cleanup.append(cleanup)
 
     aiohttp_session.setup(app, EncryptedCookieStorage(settings.auth_key, cookie_name=settings.cookie_name))
 

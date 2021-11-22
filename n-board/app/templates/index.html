@@ -8,20 +8,24 @@
      $(function() {
        var conn = null;
        var username = "UNKNOWN";
-       function log(msg) {
+       function log(msg, date = '') {
          var control = $('#log');
-         var date = new Date();
-         var date_prompt = '(' + date.toISOString().split('T')[1].slice(0,8) + ') ';
-         control.html(control.html() + date_prompt + msg + '<br/>');
+         if (!date) {
+           date = new Date();
+           date = date.toISOString()
+         }
+         var date_prompt = '(' + date.split('T')[1].slice(0,8) + ') ';
+         control.html(date_prompt + msg + '<br/>' + control.html());
          control.scrollTop(control.scrollTop() + 1000);
        }
-       function connect() {
+       function connect(user) {
          disconnect();
          var wsUri = (window.location.protocol=='https:'&&'wss://'||'ws://')+window.location.host;
          conn = new WebSocket(wsUri);
          //log('Connecting...');
          conn.onopen = function() {
            //log('Connected.');
+           conn.send(user);
            update_ui();
          };
          conn.onmessage = function(e) {
@@ -29,6 +33,11 @@
            switch (data.action) {
              case  'connect':
                username = data.username;
+               var history = JSON.parse(data.history);
+               history.forEach(message => {
+                 console.log(message);
+                 log(message.message, message.timestamp);
+               });
                log('Connected as ' + username);
                update_ui();
                break;
@@ -73,8 +82,9 @@
          $('#name').text(username);
        }
        $('#buttonConnect').click(function() {
+         var user = $('#user').val();
          if (conn == null) {
-           connect();
+           connect(user);
          } else {
            disconnect();
          }
@@ -101,7 +111,7 @@
   <body>
     <h3>Chat!</h3>
     <div>
-      <form id="connect" method="post">
+      <form id="connect" onsubmit="return false;">
         <input id="user" type="text" />
         <input id="buttonConnect" type="submit" value="Connect"/>&nbsp;|&nbsp;Status:
         <span id="name">UNKNOWN</span>

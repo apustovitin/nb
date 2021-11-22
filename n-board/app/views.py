@@ -45,11 +45,23 @@ async def index(request):
         return aiohttp_jinja2.render_template('index.html', request, {})
 
     await ws_current.prepare(request)
-
-    username = get_random_name()
+    msg = await ws_current.receive()
+    if msg.type == aiohttp.WSMsgType.text:
+        username = msg.data
     log.info('%s joined.', username)
+    history_json_list = await request.app['pg'].fetchval(
+        """
+        select coalesce(array_to_json(array_agg(row_to_json(t))), '[]')
+        from (
+          select username, timestamp, message
+          from messages
+          order by timestamp asc
+        ) t
+        """
+    )
+    print(history_json_list)
 
-    await ws_current.send_json({'action': 'connect', 'username': username})
+    await ws_current.send_json({'action': 'connect', 'username': username, 'history': history_json_list})
 
     for ws in request.app['websockets'].values():
         await ws.send_json({'action': 'join', 'username': username})
@@ -59,10 +71,12 @@ async def index(request):
         msg = await ws_current.receive()
 
         if msg.type == aiohttp.WSMsgType.text:
+            message = msg.data
+            await request.app['pg'].execute('insert into messages (username, message) values ($1, $2)', username, message)
             for ws in request.app['websockets'].values():
                 if ws is not ws_current:
                     await ws.send_json(
-                        {'action': 'sent', 'username': username, 'message': msg.data})
+                        {'action': 'sent', 'username': username, 'message': message})
         else:
             break
 
