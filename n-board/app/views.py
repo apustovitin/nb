@@ -21,21 +21,21 @@ def get_random_name():
 
 class FormModel(BaseModel):
     username: constr(max_length=40)
-    message: str
+    content: str
 
 
 async def process_form(request):
     data = dict(await request.post())
     try:
-        m = FormModel(**data)
+        newsFormated = FormModel(**data)
     except ValidationError as exc:
         return exc.errors()
 
     # simple demonstration of sessions by saving the username and pre-populating it in the form next time
     session = await get_session(request)
-    session['username'] = m.username
+    session['username'] = newsFormated.username
 
-    await request.app['pg'].execute('insert into messages (username, message) values ($1, $2)', m.username, m.message)
+    await request.app['pg'].execute('insert into news (username, content) values ($1, $2)', newsFormated.username, newsFormated.content)
 
 
 async def index(request):
@@ -53,8 +53,8 @@ async def index(request):
         """
         select coalesce(array_to_json(array_agg(row_to_json(t))), '[]')
         from (
-          select username, timestamp, message
-          from messages
+          select username, timestamp, content
+          from news
           order by timestamp asc
         ) t
         """
@@ -71,12 +71,12 @@ async def index(request):
         msg = await ws_current.receive()
 
         if msg.type == aiohttp.WSMsgType.text:
-            message = msg.data
-            await request.app['pg'].execute('insert into messages (username, message) values ($1, $2)', username, message)
+            content = msg.data
+            await request.app['pg'].execute('insert into news (username, content) values ($1, $2)', username, content)
             for ws in request.app['websockets'].values():
                 if ws is not ws_current:
                     await ws.send_json(
-                        {'action': 'sent', 'username': username, 'message': message})
+                        {'action': 'sent', 'username': username, 'content': content})
         else:
             break
 
