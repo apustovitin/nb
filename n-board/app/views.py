@@ -14,11 +14,6 @@ from pydantic import BaseModel, ValidationError, constr
 log = logging.getLogger(__name__)
 
 
-def get_random_name():
-    fake = Faker()
-    return fake.name()
-
-
 class FormModel(BaseModel):
     username: constr(max_length=40)
     content: str
@@ -49,6 +44,7 @@ async def index(request):
     if msg.type == aiohttp.WSMsgType.text:
         username = msg.data
     log.info('%s joined.', username)
+    print('joined:', username)
     history_json_list = await request.app['pg'].fetchval(
         """
         select coalesce(array_to_json(array_agg(row_to_json(t))), '[]')
